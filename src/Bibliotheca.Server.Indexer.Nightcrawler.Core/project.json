@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "buildOptions": {
+    "debugType": "portable",
+    "warningsAsErrors": true
+  },
+  "dependencies": {
+  },
+  "frameworks": {
+    "netstandard1.6": {
+      "dependencies": {
+        "NETStandard.Library": "1.6.1"
+      },
+      "imports": [
+        "dotnet5.6",
+        "dnxcore50",
+        "portable-net45+win8"
+      ]
+    }
+  }
+}
