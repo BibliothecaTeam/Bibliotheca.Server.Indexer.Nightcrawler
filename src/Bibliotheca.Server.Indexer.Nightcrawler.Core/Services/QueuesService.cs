@@ -197,12 +197,11 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 
         private async Task<string> GetGatewayAddressAsync()
         {
-            var depositoryClients = await _serviceDiscoveryQuery.GetServices(
+            var service = await _serviceDiscoveryQuery.GetService(
                 new ServerOptions { Address = _applicationParameters.ServiceDiscovery.ServerAddress },
                 new string[] { "gateway" }
             );
 
-            var service = depositoryClients?.FirstOrDefault();
             if (service == null)
             {
                 throw new GatewayServiceNotAvailableException($"Microservice with tag 'gateway' service is not running!");
