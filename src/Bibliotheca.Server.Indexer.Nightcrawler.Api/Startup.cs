@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using Bibliotheca.Server.ServiceDiscovery.ServiceClient.Extensions;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Parameters;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Services;
+using Microsoft.AspNetCore.Http;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 {
@@ -79,7 +80,8 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             });
 
             services.AddServiceDiscovery();
-
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            
             services.AddScoped<IQueuesService, QueuesService>();
         }
 

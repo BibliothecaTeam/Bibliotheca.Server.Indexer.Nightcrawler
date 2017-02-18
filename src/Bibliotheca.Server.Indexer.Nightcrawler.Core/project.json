@@ -5,6 +5,10 @@
     "warningsAsErrors": true
   },
   "dependencies": {
+    "Bibliotheca.Server.ServiceDiscovery.ServiceClient": "1.0.8",
+    "Bibliotheca.Server.Depository.Abstractions": "1.0.6",
+    "Bibliotheca.Server.Indexer.Abstractions": "1.0.4",
+    "HtmlAgilityPack": "1.4.9.5"
   },
   "frameworks": {
     "netstandard1.6": {
