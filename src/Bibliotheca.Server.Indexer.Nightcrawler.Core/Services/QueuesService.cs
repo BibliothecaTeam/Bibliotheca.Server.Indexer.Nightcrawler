@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Bibliotheca.Server.Depository.Abstractions.DataTransferObjects;
@@ -13,6 +13,7 @@ using Bibliotheca.Server.Indexer.Nightcrawler.Core.Parameters;
 using Bibliotheca.Server.ServiceDiscovery.ServiceClient;
 using HtmlAgilityPack;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Newtonsoft.Json;
@@ -27,11 +28,18 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public QueuesService(IHttpContextAccessor httpContextAccessor, IServiceDiscoveryQuery serviceDiscoveryQuery, IOptions<ApplicationParameters> applicationParameters)
+        private readonly ILogger _logger;
+
+        public QueuesService(
+            IHttpContextAccessor httpContextAccessor, 
+            IServiceDiscoveryQuery serviceDiscoveryQuery, 
+            IOptions<ApplicationParameters> applicationParameters,
+            ILoggerFactory loggerFactory)
         {
             _httpContextAccessor = httpContextAccessor;
             _serviceDiscoveryQuery = serviceDiscoveryQuery;
             _applicationParameters = applicationParameters.Value;
+            _logger = loggerFactory.CreateLogger<QueuesService>();
         }
 
         public async Task AddToQueue(string projectId, string branchName)
@@ -49,17 +57,20 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
                     continue;
                 }
 
+                _logger.LogInformation($"Indexing file: {document.Uri}");
                 var documentContent = await GetDocumentContentAsync(gatewayAddress, projectId, branchName, document);
                 var documentIndex = CreateDocumentIndex(projectId, branchName, project, document, documentContent);
 
                 await UploadDocumentIndex(gatewayAddress, projectId, branchName, documentIndex);
             }
+
+            _logger.LogInformation($"Reindexing finished");
         }
 
         private bool IsIndexable(BaseDocumentDto document)
         {
             var fileExtension = Path.GetExtension(document.Uri);
-            if(fileExtension == "md")
+            if(fileExtension == ".md")
             {
                 return true;
             }
@@ -75,8 +86,7 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             var documentsList = new List<DocumentIndexDto>();
             documentsList.Add(documentIndex);
             var stringContent = JsonConvert.SerializeObject(documentsList);
-            HttpContent content = new StringContent(stringContent);
-            content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            HttpContent content = new StringContent(stringContent, Encoding.UTF8, "application/json");
 
             HttpResponseMessage httpResponseMessage = await client.PostAsync(uploadIndexAddress, content);
             if(!httpResponseMessage.IsSuccessStatusCode)
@@ -148,6 +158,8 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 
         private async Task RemoveIndexAsync(string gatewayAddress, string projectId, string branchName)
         {
+            _logger.LogInformation($"Removing index. Prpojec Id: {projectId}. Branch Name: {branchName}.");
+
             var removeIndexAddress = $"{gatewayAddress}/search/projects/{projectId}/branches/{branchName}";
             var client = GetClient();
 
@@ -205,18 +217,21 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             HttpClient client = new HttpClient();
 
             var customHeaders = GetHttpHeaders();
-            if (customHeaders != null)
-            {
-                foreach (var header in customHeaders)
-                {
-                    if(!string.Equals(header.Key, "Host", StringComparison.OrdinalIgnoreCase))
-                    {
-                        client.DefaultRequestHeaders.Add(header.Key, header.Value as IList<string>);
-                    }
-                }
-            }
+            RewriteHeader(client, "Authorization", customHeaders);
 
             return client;
+        }
+
+       private void RewriteHeader(HttpClient client, string header, IDictionary<string, StringValues> customHeaders)
+        {
+            if (customHeaders != null)
+            {
+                if(customHeaders.ContainsKey(header))
+                {
+                    var value = customHeaders[header];
+                    client.DefaultRequestHeaders.Add(header, value as IList<string>);
+                }
+            }
         }
 
         public string UppercaseFirst(string s)
