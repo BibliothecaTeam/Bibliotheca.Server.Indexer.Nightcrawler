@@ -82,6 +82,8 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             services.AddServiceDiscovery();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             
+            services.AddScoped<IDiscoveryService, DiscoveryService>();
+            services.AddScoped<IGatewayService, GatewayService>();
             services.AddScoped<IQueuesService, QueuesService>();
         }
 
