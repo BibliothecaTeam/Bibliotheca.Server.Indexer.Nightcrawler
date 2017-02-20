@@ -1,54 +1,33 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Bibliotheca.Server.Depository.Abstractions.DataTransferObjects;
 using Bibliotheca.Server.Indexer.Abstractions.DataTransferObjects;
-using Bibliotheca.Server.Indexer.Nightcrawler.Core.Exceptions;
-using Bibliotheca.Server.Indexer.Nightcrawler.Core.Parameters;
-using Bibliotheca.Server.ServiceDiscovery.ServiceClient;
 using HtmlAgilityPack;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
-using Newtonsoft.Json;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 {
     public class QueuesService : IQueuesService
     {
-        private readonly IServiceDiscoveryQuery _serviceDiscoveryQuery;
-
-        private readonly ApplicationParameters _applicationParameters;
-
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IGatewayService _gatewayService;
 
         private readonly ILogger _logger;
 
         public QueuesService(
-            IHttpContextAccessor httpContextAccessor, 
-            IServiceDiscoveryQuery serviceDiscoveryQuery, 
-            IOptions<ApplicationParameters> applicationParameters,
+            IGatewayService gatewayService, 
             ILoggerFactory loggerFactory)
         {
-            _httpContextAccessor = httpContextAccessor;
-            _serviceDiscoveryQuery = serviceDiscoveryQuery;
-            _applicationParameters = applicationParameters.Value;
+            _gatewayService = gatewayService;
             _logger = loggerFactory.CreateLogger<QueuesService>();
         }
 
         public async Task AddToQueue(string projectId, string branchName)
         {
-            var gatewayAddress = await GetGatewayAddressAsync();
-            var project = await GetProjectAsync(gatewayAddress, projectId);
-            var allDocuments = await GetAllDocumentsAsync(gatewayAddress, projectId, branchName);
+            var project = await _gatewayService.GetProjectAsync(projectId);
+            var allDocuments = await _gatewayService.GetAllDocumentsAsync(projectId, branchName);
 
-            await RemoveIndexAsync(gatewayAddress, projectId, branchName);
+            await _gatewayService.RemoveIndexAsync(projectId, branchName);
 
             foreach(var document in allDocuments)
             {
@@ -58,10 +37,10 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
                 }
 
                 _logger.LogInformation($"Indexing file: {document.Uri}");
-                var documentContent = await GetDocumentContentAsync(gatewayAddress, projectId, branchName, document);
+                var documentContent = await _gatewayService.GetDocumentContentAsync(projectId, branchName, document);
                 var documentIndex = CreateDocumentIndex(projectId, branchName, project, document, documentContent);
 
-                await UploadDocumentIndex(gatewayAddress, projectId, branchName, documentIndex);
+                await _gatewayService.UploadDocumentIndex(projectId, branchName, documentIndex);
             }
 
             _logger.LogInformation($"Reindexing finished");
@@ -76,24 +55,6 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             }
 
             return false;
-        }
-
-        private async Task UploadDocumentIndex(string gatewayAddress, string projectId, string branchName, DocumentIndexDto documentIndex)
-        {
-            var uploadIndexAddress = $"{gatewayAddress}/search/projects/{projectId}/branches/{branchName}";
-            var client = GetClient();
-            
-            var documentsList = new List<DocumentIndexDto>();
-            documentsList.Add(documentIndex);
-            var stringContent = JsonConvert.SerializeObject(documentsList);
-            HttpContent content = new StringContent(stringContent, Encoding.UTF8, "application/json");
-
-            HttpResponseMessage httpResponseMessage = await client.PostAsync(uploadIndexAddress, content);
-            if(!httpResponseMessage.IsSuccessStatusCode)
-            {
-                var message = await httpResponseMessage.Content.ReadAsStringAsync();
-                throw new UploadDocumentToIndexException($"Document wasn't successfully uploaded. Status code: {httpResponseMessage.StatusCode}. Response message: '{message}'.");
-            }
         }
 
         private DocumentIndexDto CreateDocumentIndex(string projectId, string branchName, ProjectDto project, BaseDocumentDto document, string documentContent)
@@ -133,105 +94,6 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             var indexed = htmlDocument.DocumentNode.InnerText;
 
             return indexed;
-        }
-
-        private async Task<string> GetDocumentContentAsync(string gatewayAddress, string projectId, string branchName, BaseDocumentDto document)
-        {
-            var fileUri = document.Uri.Replace("/", ":");
-            var docuemntsAddress = $"{gatewayAddress}/projects/{projectId}/branches/{branchName}/documents/content/{fileUri}";
-            var client = GetClient();
-
-            var responseString = await client.GetStringAsync(docuemntsAddress);
-            return responseString;
-        }
-
-        private async Task<ProjectDto> GetProjectAsync(string gatewayAddress, string projectId)
-        {
-            var projectAddress = $"{gatewayAddress}/projects/{projectId}";
-            var client = GetClient();
-        
-            var responseString = await client.GetStringAsync(projectAddress);
-            var deserializedObject = JsonConvert.DeserializeObject<ProjectDto>(responseString);
-
-            return deserializedObject;
-        }
-
-        private async Task RemoveIndexAsync(string gatewayAddress, string projectId, string branchName)
-        {
-            _logger.LogInformation($"Removing index. Prpojec Id: {projectId}. Branch Name: {branchName}.");
-
-            var removeIndexAddress = $"{gatewayAddress}/search/projects/{projectId}/branches/{branchName}";
-            var client = GetClient();
-
-            HttpResponseMessage httpResponseMessage = await client.DeleteAsync(removeIndexAddress);
-            if(!httpResponseMessage.IsSuccessStatusCode)
-            {
-                var message = await httpResponseMessage.Content.ReadAsStringAsync();
-                throw new RemoveIndexException($"Index wasn't successfully removed. Status code: {httpResponseMessage.StatusCode}. Response message: '{message}'.");
-            }
-        }
-
-        private async Task<IList<BaseDocumentDto>> GetAllDocumentsAsync(string gatewayAddress, string projectId, string branchName)
-        {
-            var docuemntsAddress = $"{gatewayAddress}/projects/{projectId}/branches/{branchName}/documents";
-            var client = GetClient();
-
-            var responseString = await client.GetStringAsync(docuemntsAddress);
-            var deserializedObject = JsonConvert.DeserializeObject<IList<BaseDocumentDto>>(responseString);
-
-            return deserializedObject;
-        }
-
-        private IDictionary<string, StringValues> GetHttpHeaders()
-        {
-            var httpContext = _httpContextAccessor.HttpContext;
-
-            IDictionary<string, StringValues> headers = null;
-            if (httpContext != null && httpContext.Request != null)
-            {
-                headers = httpContext.Request.Headers as IDictionary<string, StringValues>;
-            }
-
-            return headers;
-        }
-
-        private async Task<string> GetGatewayAddressAsync()
-        {
-            var depositoryClients = await _serviceDiscoveryQuery.GetServices(
-                new ServerOptions { Address = _applicationParameters.ServiceDiscovery.ServerAddress },
-                new string[] { "gateway" }
-            );
-
-            var service = depositoryClients?.FirstOrDefault();
-            if (service == null)
-            {
-                throw new GatewayServiceNotAvailableException($"Microservice with tag 'gateway' service is not running!");
-            }
-
-            var address = $"http://{service.Address}:{service.Port}/api";
-            return address;
-        }
-
-        private HttpClient GetClient()
-        {
-            HttpClient client = new HttpClient();
-
-            var customHeaders = GetHttpHeaders();
-            RewriteHeader(client, "Authorization", customHeaders);
-
-            return client;
-        }
-
-       private void RewriteHeader(HttpClient client, string header, IDictionary<string, StringValues> customHeaders)
-        {
-            if (customHeaders != null)
-            {
-                if(customHeaders.ContainsKey(header))
-                {
-                    var value = customHeaders[header];
-                    client.DefaultRequestHeaders.Add(header, value as IList<string>);
-                }
-            }
         }
 
         public string UppercaseFirst(string s)
