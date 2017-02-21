@@ -8,6 +8,10 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Parameters
 
         public string OAuthAudience { get; set; }
 
+        public string CacheConfiguration { get; set; }
+        
+        public string CacheInstanceName { get; set; }
+
         public ServiceDiscovery ServiceDiscovery { get; set; }
     }
 }

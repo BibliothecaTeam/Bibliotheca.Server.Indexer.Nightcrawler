@@ -79,6 +79,13 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
                 });
             });
 
+            services.AddDistributedRedisCache(options =>
+            {
+                options.Configuration = Configuration["CacheConfiguration"];
+                options.InstanceName = Configuration["CacheInstanceName"];
+                options.ResolveDns();
+            });
+
             services.AddServiceDiscovery();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             

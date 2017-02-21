@@ -1,10 +1,16 @@
+using System;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Bibliotheca.Server.Depository.Abstractions.DataTransferObjects;
 using Bibliotheca.Server.Indexer.Abstractions.DataTransferObjects;
+using Bibliotheca.Server.Indexer.Nightcrawler.Core.DataTransferObjects;
+using Bibliotheca.Server.Indexer.Nightcrawler.Core.Exceptions;
 using HtmlAgilityPack;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 {
@@ -14,36 +20,115 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 
         private readonly ILogger _logger;
 
+        private readonly IDistributedCache _cache;
+
         public QueuesService(
             IGatewayService gatewayService, 
-            ILoggerFactory loggerFactory)
+            ILoggerFactory loggerFactory,
+            IDistributedCache cache)
         {
             _gatewayService = gatewayService;
             _logger = loggerFactory.CreateLogger<QueuesService>();
+            _cache = cache;
         }
 
-        public async Task AddToQueue(string projectId, string branchName)
+        public async Task AddToQueueAsync(string projectId, string branchName)
         {
-            var project = await _gatewayService.GetProjectAsync(projectId);
-            var allDocuments = await _gatewayService.GetAllDocumentsAsync(projectId, branchName);
-
-            await _gatewayService.RemoveIndexAsync(projectId, branchName);
-
-            foreach(var document in allDocuments)
+            var cacheKey = GetCacheKey(projectId, branchName);
+            var value = await _cache.GetAsync(cacheKey);
+            if (value != null)
             {
-                if(!IsIndexable(document))
-                {
-                    continue;
-                }
-
-                _logger.LogInformation($"Indexing file: {document.Uri}");
-                var documentContent = await _gatewayService.GetDocumentContentAsync(projectId, branchName, document);
-                var documentIndex = CreateDocumentIndex(projectId, branchName, project, document, documentContent);
-
-                await _gatewayService.UploadDocumentIndex(projectId, branchName, documentIndex);
+                throw new QueueForBranchExistsException($"Queue for project: '{projectId}' and branch '{branchName}' already exists.");
             }
 
-            _logger.LogInformation($"Reindexing finished");
+            try
+            {
+                var queueStatus = await AddQueueStatusToCache(projectId, branchName, cacheKey);
+
+                var project = await _gatewayService.GetProjectAsync(projectId);
+                var allDocuments = await _gatewayService.GetAllDocumentsAsync(projectId, branchName);
+                queueStatus.NumberOfAllDocuments = allDocuments.Count;
+
+                await _gatewayService.RemoveIndexAsync(projectId, branchName);
+
+                foreach (var document in allDocuments)
+                {
+                    queueStatus.NumberOfIndexedDocuments++;
+                    if (!IsIndexable(document))
+                    {
+                        await UpdateQueueStatusInCache(queueStatus, cacheKey);
+                        continue;
+                    }
+
+                    _logger.LogInformation($"Indexing file: {document.Uri}");
+                    var documentContent = await _gatewayService.GetDocumentContentAsync(projectId, branchName, document);
+                    var documentIndex = CreateDocumentIndex(projectId, branchName, project, document, documentContent);
+
+                    await _gatewayService.UploadDocumentIndex(projectId, branchName, documentIndex);
+                    await UpdateQueueStatusInCache(queueStatus, cacheKey);
+                }
+
+                _logger.LogInformation($"Reindexing finished");
+            }
+            catch (Exception exception)
+            {
+                throw exception;
+            }
+            finally
+            {
+                await RemoveQueueStatusFromCache(cacheKey);
+            }
+        }
+
+        public async Task<QueueStatusDto> GetQueueStatusAsync(string projectId, string branchName)
+        {
+            var cacheKey = GetCacheKey(projectId, branchName);
+            var value = await _cache.GetAsync(cacheKey);
+
+            if(value == null)
+            {
+                return null;
+            }
+
+            var objectString = Encoding.UTF8.GetString(value);
+            var queueStatus = JsonConvert.DeserializeObject<QueueStatusDto>(objectString);
+
+            return queueStatus;
+        }
+
+        private async Task RemoveQueueStatusFromCache(string cacheKey)
+        {
+            await _cache.RemoveAsync(cacheKey);
+        }
+
+        private async Task<QueueStatusDto> AddQueueStatusToCache(string projectId, string branchName, string cacheKey)
+        {
+            var queueStatus = new QueueStatusDto
+            {
+                ProjectId = projectId,
+                BranchName = branchName,
+                StartTime = DateTime.UtcNow,
+                NumberOfIndexedDocuments = 0,
+                NumberOfAllDocuments = null
+            };
+            var serialoizedObject = JsonConvert.SerializeObject(queueStatus);
+            var objectBytes = Encoding.UTF8.GetBytes(serialoizedObject);
+
+            await _cache.SetAsync(cacheKey, objectBytes, new DistributedCacheEntryOptions());
+            return queueStatus;
+        }
+
+        private async Task UpdateQueueStatusInCache(QueueStatusDto queueStatus, string cacheKey)
+        {
+            var serialoizedObject = JsonConvert.SerializeObject(queueStatus);
+            var objectBytes = Encoding.UTF8.GetBytes(serialoizedObject);
+
+            await _cache.SetAsync(cacheKey, objectBytes, new DistributedCacheEntryOptions());
+        }
+
+        private string GetCacheKey(string projectId, string branchName)
+        {
+            return $"{projectId}#{branchName}";
         }
 
         private bool IsIndexable(BaseDocumentDto document)
