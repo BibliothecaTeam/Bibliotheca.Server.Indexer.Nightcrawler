@@ -5,7 +5,7 @@
     "warningsAsErrors": true
   },
   "dependencies": {
-    "Bibliotheca.Server.ServiceDiscovery.ServiceClient": "1.0.9",
+    "Bibliotheca.Server.ServiceDiscovery.ServiceClient": "1.0.12",
     "Bibliotheca.Server.Depository.Abstractions": "1.0.6",
     "Bibliotheca.Server.Indexer.Abstractions": "1.0.4",
     "HtmlAgilityPack": "1.4.9.5"
