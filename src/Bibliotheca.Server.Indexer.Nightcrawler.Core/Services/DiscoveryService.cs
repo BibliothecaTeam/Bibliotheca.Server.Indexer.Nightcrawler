@@ -44,7 +44,7 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 
         private async Task<string> DownloadGatewayAddress()
         {
-            var service = await _serviceDiscoveryQuery.GetService(
+            var service = await _serviceDiscoveryQuery.GetServiceAsync(
                 new ServerOptions { Address = _applicationParameters.ServiceDiscovery.ServerAddress },
                 new string[] { "gateway" }
             );
