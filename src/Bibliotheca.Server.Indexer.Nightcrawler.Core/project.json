@@ -5,6 +5,7 @@
     "warningsAsErrors": true
   },
   "dependencies": {
+    "Hangfire.AspNetCore": "1.6.8",
     "Bibliotheca.Server.ServiceDiscovery.ServiceClient": "1.0.12",
     "Bibliotheca.Server.Depository.Abstractions": "1.0.6",
     "Bibliotheca.Server.Indexer.Abstractions": "1.0.4",
