@@ -77,18 +77,21 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             }
         }
 
-        public async Task<QueueStatusDto> GetQueueStatusAsync(string projectId, string branchName)
+        public async Task<IndexStatusDto> GetQueueStatusAsync(string projectId, string branchName)
         {
             var cacheKey = GetCacheKey(projectId, branchName);
             var value = await _cache.GetAsync(cacheKey);
 
-            if(value == null)
+            IndexStatusDto queueStatus = null;
+            if(value != null)
             {
-                return null;
+                var objectString = Encoding.UTF8.GetString(value);
+                queueStatus = JsonConvert.DeserializeObject<QueueStatusDto>(objectString);
             }
-
-            var objectString = Encoding.UTF8.GetString(value);
-            var queueStatus = JsonConvert.DeserializeObject<QueueStatusDto>(objectString);
+            else
+            {
+                queueStatus = new IndexStatusDto { IndexStatus = IndexStatusEnum.Unknown };
+            }
 
             return queueStatus;
         }
@@ -106,7 +109,8 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
                 BranchName = branchName,
                 StartTime = DateTime.UtcNow,
                 NumberOfIndexedDocuments = 0,
-                NumberOfAllDocuments = null
+                NumberOfAllDocuments = null,
+                IndexStatus = IndexStatusEnum.Indexing
             };
             var serialoizedObject = JsonConvert.SerializeObject(queueStatus);
             var objectBytes = Encoding.UTF8.GetBytes(serialoizedObject);

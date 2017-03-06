@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Bibliotheca.Server.Indexer.Nightcrawler.Core.DataTransferObjects;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Jobs;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Services;
 using Hangfire;
@@ -20,15 +21,10 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get(string projectId, string branchName)
+        public async Task<IndexStatusDto> Get(string projectId, string branchName)
         {
             var queueStatus = await _queuesService.GetQueueStatusAsync(projectId, branchName);
-            if(queueStatus != null)
-            {
-                return new ObjectResult(queueStatus);
-            }
-
-            return NotFound();
+            return queueStatus;
         }
 
         [HttpPost]
