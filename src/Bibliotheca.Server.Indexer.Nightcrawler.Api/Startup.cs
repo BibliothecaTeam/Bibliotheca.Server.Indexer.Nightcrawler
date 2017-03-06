@@ -14,7 +14,7 @@ using Bibliotheca.Server.Indexer.Nightcrawler.Core.Parameters;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Services;
 using Microsoft.AspNetCore.Http;
 using Hangfire;
-using Bibliotheca.Server.Indexer.Nightcrawler.Api.Jobs;
+using Bibliotheca.Server.Indexer.Nightcrawler.Core.Jobs;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 {
@@ -93,6 +93,7 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             services.AddServiceDiscovery();
 
             services.AddScoped<IServiceDiscoveryRegistrationJob, ServiceDiscoveryRegistrationJob>();
+            services.AddScoped<IIndexRefreshJob, IndexRefreshJob>();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             
             services.AddScoped<IDiscoveryService, DiscoveryService>();

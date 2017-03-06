@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
-using Bibliotheca.Server.Indexer.Nightcrawler.Core.DataTransferObjects;
+using Bibliotheca.Server.Indexer.Nightcrawler.Core.Jobs;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Services;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,9 +32,9 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post(string projectId, string branchName)
+        public IActionResult Post(string projectId, string branchName)
         {
-            await _queuesService.AddToQueueAsync(projectId, branchName);
+            BackgroundJob.Enqueue<IIndexRefreshJob>(x => x.RefreshIndexAsync(null, projectId, branchName));
             return Ok();
         }
     }

@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Hangfire.Server;
 
-namespace Bibliotheca.Server.Indexer.Nightcrawler.Api.Jobs
+namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Jobs
 {
     public interface IServiceDiscoveryRegistrationJob
     {

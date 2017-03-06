@@ -27,7 +27,7 @@
     "Hangfire.AspNetCore": "1.6.8",
     "Hangfire.MemoryStorage.Core": "1.4.0",
     "Bibliotheca.Server.Mvc.Middleware.Authorization": "1.0.3",
-    "Bibliotheca.Server.Mvc.Middleware.Diagnostics": "1.0.3",
+    "Bibliotheca.Server.Mvc.Middleware.Diagnostics": "1.0.4",
     "Bibliotheca.Server.ServiceDiscovery.ServiceClient": "1.0.12",
     "Bibliotheca.Server.Indexer.Nightcrawler.Core": "1.0.0"
   },

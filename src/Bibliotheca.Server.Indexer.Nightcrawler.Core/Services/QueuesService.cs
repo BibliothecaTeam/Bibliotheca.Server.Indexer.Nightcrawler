@@ -35,14 +35,15 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
         public async Task AddToQueueAsync(string projectId, string branchName)
         {
             var cacheKey = GetCacheKey(projectId, branchName);
-            var value = await _cache.GetAsync(cacheKey);
-            if (value != null)
-            {
-                throw new QueueForBranchExistsException($"Queue for project: '{projectId}' and branch '{branchName}' already exists.");
-            }
 
             try
-            {
+            { 
+                var value = await _cache.GetAsync(cacheKey);
+                if (value != null)
+                {
+                    throw new QueueForBranchExistsException($"Queue for project: '{projectId}' and branch '{branchName}' already exists.");
+                }
+
                 var queueStatus = await AddQueueStatusToCache(projectId, branchName, cacheKey);
 
                 var project = await _gatewayService.GetProjectAsync(projectId);
@@ -69,10 +70,6 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
                 }
 
                 _logger.LogInformation($"Reindexing finished");
-            }
-            catch (Exception exception)
-            {
-                throw exception;
             }
             finally
             {

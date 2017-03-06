@@ -5,7 +5,7 @@ using Bibliotheca.Server.ServiceDiscovery.ServiceClient;
 using Hangfire.Server;
 using Microsoft.Extensions.Options;
 
-namespace Bibliotheca.Server.Indexer.Nightcrawler.Api.Jobs
+namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Jobs
 {
     public class ServiceDiscoveryRegistrationJob : IServiceDiscoveryRegistrationJob
     {
