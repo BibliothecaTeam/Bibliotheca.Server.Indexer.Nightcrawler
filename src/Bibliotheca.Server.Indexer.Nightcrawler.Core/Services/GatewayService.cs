@@ -115,7 +115,7 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 
             if(!client.DefaultRequestHeaders.Contains("Authorization"))
             {
-                client.DefaultRequestHeaders.Add("Authorization", $"SecureToken {_applicationParameters.SecurityToken}");
+                client.DefaultRequestHeaders.Add("Authorization", $"SecureToken {_applicationParameters.SecureToken}");
             }
 
             return client;
