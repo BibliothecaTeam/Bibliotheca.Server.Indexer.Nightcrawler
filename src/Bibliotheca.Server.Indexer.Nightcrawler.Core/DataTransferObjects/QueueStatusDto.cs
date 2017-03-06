@@ -2,7 +2,7 @@ using System;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.DataTransferObjects
 {
-    public class QueueStatusDto
+    public class QueueStatusDto : IndexStatusDto
     {
         public string ProjectId { get; set; }
 

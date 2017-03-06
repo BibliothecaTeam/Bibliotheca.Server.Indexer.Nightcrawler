@@ -7,6 +7,6 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
     {
         Task AddToQueueAsync(string projectId, string branchName);
         
-        Task<QueueStatusDto> GetQueueStatusAsync(string projectId, string branchName);
+        Task<IndexStatusDto> GetQueueStatusAsync(string projectId, string branchName);
     }
 }
