@@ -113,6 +113,11 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             var customHeaders = GetHttpHeaders();
             RewriteHeader(client, "Authorization", customHeaders);
 
+            if(!client.DefaultRequestHeaders.Contains("Authorization"))
+            {
+                client.DefaultRequestHeaders.Add("Authorization", $"SecureToken {_applicationParameters.SecurityToken}");
+            }
+
             return client;
         }
 
