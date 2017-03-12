@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Services;
 using Hangfire.Server;
