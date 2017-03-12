@@ -3,8 +3,6 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Bibliotheca.Server.Depository.Abstractions.DataTransferObjects;
-using Bibliotheca.Server.Indexer.Abstractions.DataTransferObjects;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.DataTransferObjects;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Exceptions;
 using HtmlAgilityPack;

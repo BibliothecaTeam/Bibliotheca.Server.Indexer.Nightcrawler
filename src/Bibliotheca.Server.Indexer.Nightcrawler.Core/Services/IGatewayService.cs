@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Bibliotheca.Server.Depository.Abstractions.DataTransferObjects;
-using Bibliotheca.Server.Indexer.Abstractions.DataTransferObjects;
+using Bibliotheca.Server.Indexer.Nightcrawler.Core.DataTransferObjects;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 {
