@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Bibliotheca.Server.Mvc.Middleware.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +14,10 @@ using Bibliotheca.Server.Indexer.Nightcrawler.Core.Services;
 using Microsoft.AspNetCore.Http;
 using Hangfire;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Jobs;
+using Bibliotheca.Server.Mvc.Middleware.Authorization.UserTokenAuthentication;
+using Bibliotheca.Server.Indexer.Nightcrawler.Api.UserTokenAuthorization;
+using Bibliotheca.Server.Mvc.Middleware.Authorization.SecureTokenAuthentication;
+using Bibliotheca.Server.Mvc.Middleware.Authorization.BearerAuthentication;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 {
@@ -93,6 +96,8 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             services.AddServiceDiscovery();
 
             services.AddScoped<IServiceDiscoveryRegistrationJob, ServiceDiscoveryRegistrationJob>();
+            services.AddScoped<IUserTokenConfiguration, UserTokenConfiguration>();
+
             services.AddScoped<IIndexRefreshJob, IndexRefreshJob>();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             
@@ -130,6 +135,13 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
                 Realm = SecureTokenDefaults.Realm
             };
             app.UseSecureTokenAuthentication(secureTokenOptions);
+
+            var userTokenOptions = new UserTokenOptions
+            {
+                AuthenticationScheme = UserTokenDefaults.AuthenticationScheme,
+                Realm = UserTokenDefaults.Realm
+            };
+            app.UseUserTokenAuthentication(userTokenOptions);
 
             var jwtBearerOptions = new JwtBearerOptions
             {
