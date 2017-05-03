@@ -5,8 +5,15 @@ using Microsoft.Extensions.Configuration;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 {
+    /// <summary>
+    /// Main program endpoint.
+    /// </summary>
     public class Program
     {
+        /// <summary>
+        /// Main method.
+        /// </summary>
+        /// <param name="args"></param>
         public static void Main(string[] args)
         {
             var configuration = new ConfigurationBuilder()

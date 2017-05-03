@@ -44,17 +44,17 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 
         private async Task<string> DownloadGatewayAddress()
         {
-            var service = await _serviceDiscoveryQuery.GetServiceAsync(
+            var instance = await _serviceDiscoveryQuery.GetServiceInstanceAsync(
                 new ServerOptions { Address = _applicationParameters.ServiceDiscovery.ServerAddress },
                 new string[] { "gateway" }
             );
 
-            if (service == null)
+            if (instance == null)
             {
                 throw new GatewayServiceNotAvailableException($"Microservice with tag 'gateway' service is not running!");
             }
 
-            var address = $"http://{service.Address}:{service.Port}/api";
+            var address = $"http://{instance.Address}:{instance.Port}/api";
             return address;
         }
     }
