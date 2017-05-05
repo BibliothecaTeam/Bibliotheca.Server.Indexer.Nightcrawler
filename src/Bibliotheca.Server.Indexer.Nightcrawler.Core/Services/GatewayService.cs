@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,16 +24,20 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 
         private readonly ILogger _logger;
 
+        private readonly HttpClient _httpClient;
+
         public GatewayService(
             IHttpContextAccessor httpContextAccessor, 
             IOptions<ApplicationParameters> applicationParameters,
             IDiscoveryService discoveryService,
-            ILoggerFactory loggerFactory)
+            ILoggerFactory loggerFactory,
+            HttpClient httpClient)
         {
             _httpContextAccessor = httpContextAccessor;
             _applicationParameters = applicationParameters.Value;
             _discoveryService = discoveryService;
             _logger = loggerFactory.CreateLogger<GatewayService>();
+            _httpClient = httpClient;
         }
 
         public async Task UploadDocumentIndex(string projectId, string branchName, DocumentIndexDto documentIndex)
@@ -61,8 +66,15 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             var docuemntsAddress = $"{gatewayAddress}/projects/{projectId}/branches/{branchName}/documents/content/{fileUri}";
             var client = GetClient();
 
-            var responseString = await client.GetStringAsync(docuemntsAddress);
-            return responseString;
+            var response = await client.GetAsync(docuemntsAddress);
+            if(response.IsSuccessStatusCode)
+            {
+                var responseString = await response.Content.ReadAsStringAsync();
+                return responseString;
+            }
+
+            var message = await response.Content.ReadAsStringAsync();
+            throw new DowonloadDocumentContentException($"Document wasn't successfully downloaded. Status code: {response.StatusCode}. Response message: '{message}'.");
         }
 
         public async Task<ProjectDto> GetProjectAsync(string projectId)
@@ -71,10 +83,16 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             var projectAddress = $"{gatewayAddress}/projects/{projectId}";
             var client = GetClient();
         
-            var responseString = await client.GetStringAsync(projectAddress);
-            var deserializedObject = JsonConvert.DeserializeObject<ProjectDto>(responseString);
+            var response = await client.GetAsync(projectAddress);
+            if(response.IsSuccessStatusCode)
+            {
+                var responseString = await response.Content.ReadAsStringAsync();
+                var deserializedObject = JsonConvert.DeserializeObject<ProjectDto>(responseString);
+                return deserializedObject;
+            }
 
-            return deserializedObject;
+            var message = await response.Content.ReadAsStringAsync();
+            throw new DownloadProjectDataException($"Project wasn't successfully downloaded. Status code: {response.StatusCode}. Response message: '{message}'.");
         }
 
         public async Task RemoveIndexAsync(string projectId, string branchName)
@@ -99,37 +117,23 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             var docuemntsAddress = $"{gatewayAddress}/projects/{projectId}/branches/{branchName}/documents";
             var client = GetClient();
 
-            var responseString = await client.GetStringAsync(docuemntsAddress);
-            var deserializedObject = JsonConvert.DeserializeObject<IList<BaseDocumentDto>>(responseString);
+            var response = await client.GetAsync(docuemntsAddress);
+            if(response.IsSuccessStatusCode)
+            {
+                var responseString = await response.Content.ReadAsStringAsync();
+                var deserializedObject = JsonConvert.DeserializeObject<IList<BaseDocumentDto>>(responseString);
+                return deserializedObject;
+            }
 
-            return deserializedObject;
+            var message = await response.Content.ReadAsStringAsync();
+            throw new DownloadDocumentsException($"Documents list wasn't successfully downloaded. Status code: {response.StatusCode}. Response message: '{message}'.");
         }
 
-        private HttpClient GetClient()
+        private BaseHttpClient GetClient()
         {
-            HttpClient client = new HttpClient();
-
             var customHeaders = GetHttpHeaders();
-            RewriteHeader(client, "Authorization", customHeaders);
-
-            if(!client.DefaultRequestHeaders.Contains("Authorization"))
-            {
-                client.DefaultRequestHeaders.Add("Authorization", $"SecureToken {_applicationParameters.SecureToken}");
-            }
-
+            var client = new BaseHttpClient(_httpClient, customHeaders, _applicationParameters.SecureToken);
             return client;
-        }
-
-       private void RewriteHeader(HttpClient client, string header, IDictionary<string, StringValues> customHeaders)
-        {
-            if (customHeaders != null)
-            {
-                if(customHeaders.ContainsKey(header))
-                {
-                    var value = customHeaders[header];
-                    client.DefaultRequestHeaders.Add(header, value as IList<string>);
-                }
-            }
         }
 
         private IDictionary<string, StringValues> GetHttpHeaders()

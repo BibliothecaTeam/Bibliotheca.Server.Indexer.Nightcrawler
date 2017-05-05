@@ -20,6 +20,7 @@ using Bibliotheca.Server.Mvc.Middleware.Authorization.BearerAuthentication;
 using Microsoft.Extensions.PlatformAbstractions;
 using System.IO;
 using Swashbuckle.AspNetCore.Swagger;
+using System.Net.Http;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 {
@@ -111,6 +112,7 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             });
 
             services.AddServiceDiscovery();
+            services.AddSingleton<HttpClient, HttpClient>();
 
             services.AddScoped<IServiceDiscoveryRegistrationJob, ServiceDiscoveryRegistrationJob>();
             services.AddScoped<IUserTokenConfiguration, UserTokenConfiguration>();
