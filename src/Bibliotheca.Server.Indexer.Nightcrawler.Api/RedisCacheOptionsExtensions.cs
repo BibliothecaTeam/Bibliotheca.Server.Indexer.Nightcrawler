@@ -6,9 +6,16 @@ using StackExchange.Redis;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 {
+    /// <summary>
+    /// Extension for redis cache options.
+    /// </summary>
     public static class RedisCacheOptionsExtensions
     {
 
+        /// <summary>
+        /// Method which resolves DNS.
+        /// </summary>
+        /// <param name="options"></param>
         public static void ResolveDns(this RedisCacheOptions options)
         {
             // Assume that the first part is host and port.

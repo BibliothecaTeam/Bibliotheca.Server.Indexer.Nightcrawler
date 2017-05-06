@@ -1,6 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <VersionPrefix>1.2.0</VersionPrefix>
     <TargetFramework>netstandard1.6</TargetFramework>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DebugType>portable</DebugType>
@@ -11,9 +12,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Hangfire.AspNetCore" Version="1.6.9" />
-    <PackageReference Include="Bibliotheca.Server.ServiceDiscovery.ServiceClient" Version="1.0.12" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.6.12" />
+    <PackageReference Include="Bibliotheca.Server.ServiceDiscovery.ServiceClient" Version="1.0.18" />
     <PackageReference Include="HtmlAgilityPack" Version="1.4.9.5" />
   </ItemGroup>
 
+  <ItemGroup>
+    <DotNetCliToolReference Include="libyear" Version="*" />
+  </ItemGroup>
+  
 </Project>

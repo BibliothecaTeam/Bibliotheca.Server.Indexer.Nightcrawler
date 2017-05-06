@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
-using Swashbuckle.Swagger.Model;
 using Bibliotheca.Server.ServiceDiscovery.ServiceClient.Extensions;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Parameters;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Services;
@@ -18,15 +17,26 @@ using Bibliotheca.Server.Mvc.Middleware.Authorization.UserTokenAuthentication;
 using Bibliotheca.Server.Indexer.Nightcrawler.Api.UserTokenAuthorization;
 using Bibliotheca.Server.Mvc.Middleware.Authorization.SecureTokenAuthentication;
 using Bibliotheca.Server.Mvc.Middleware.Authorization.BearerAuthentication;
+using Microsoft.Extensions.PlatformAbstractions;
+using System.IO;
+using Swashbuckle.AspNetCore.Swagger;
+using System.Net.Http;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 {
+    /// <summary>
+    /// Startup class.
+    /// </summary>
     public class Startup
     {
-        public IConfigurationRoot Configuration { get; }
+        private IConfigurationRoot Configuration { get; }
 
-        protected bool UseServiceDiscovery { get; set; } = true;
+        private bool UseServiceDiscovery { get; set; } = true;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="env">Environment parameters.</param>
         public Startup(IHostingEnvironment env)
         {
             var builder = new ConfigurationBuilder()
@@ -37,6 +47,11 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             Configuration = builder.Build();
         }
 
+        /// <summary>
+        /// Service configuration.
+        /// </summary>
+        /// <param name="services">List of services.</param>
+        /// <returns>Service provider.</returns>
         public void ConfigureServices(IServiceCollection services)
         {
             services.Configure<ApplicationParameters>(Configuration);
@@ -74,16 +89,19 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
                 options.ApiVersionReader = new QueryStringOrHeaderApiVersionReader("api-version");
             });
 
-            services.AddSwaggerGen();
-            services.ConfigureSwaggerGen(options =>
+            services.AddSwaggerGen(options =>
             {
-                options.SingleApiVersion(new Info
+                options.SwaggerDoc("v1", new Info
                 {
                     Version = "v1",
                     Title = "Indexer AzureSearch API",
                     Description = "Microservice for Azure search feature for Bibliotheca.",
                     TermsOfService = "None"
                 });
+
+                var basePath = PlatformServices.Default.Application.ApplicationBasePath;
+                var xmlPath = Path.Combine(basePath, "Bibliotheca.Server.Indexer.Nightcrawler.Api.xml"); 
+                options.IncludeXmlComments(xmlPath);
             });
 
             services.AddDistributedRedisCache(options =>
@@ -94,6 +112,7 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             });
 
             services.AddServiceDiscovery();
+            services.AddSingleton<HttpClient, HttpClient>();
 
             services.AddScoped<IServiceDiscoveryRegistrationJob, ServiceDiscoveryRegistrationJob>();
             services.AddScoped<IUserTokenConfiguration, UserTokenConfiguration>();
@@ -106,6 +125,12 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             services.AddScoped<IQueuesService, QueuesService>();
         }
 
+        /// <summary>
+        /// Configure web application.
+        /// </summary>
+        /// <param name="app">Application builder.</param>
+        /// <param name="env">Environment parameters.</param>
+        /// <param name="loggerFactory">Logger.</param>
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
             if(env.IsDevelopment())
@@ -155,7 +180,10 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             app.UseMvc();
 
             app.UseSwagger();
-            app.UseSwaggerUi();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "API v1");
+            });
         }
     }
 }
