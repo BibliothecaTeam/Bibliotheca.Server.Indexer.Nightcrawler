@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
-using Bibliotheca.Server.ServiceDiscovery.ServiceClient.Extensions;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Parameters;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Services;
 using Microsoft.AspNetCore.Http;
@@ -17,10 +16,11 @@ using Bibliotheca.Server.Mvc.Middleware.Authorization.UserTokenAuthentication;
 using Bibliotheca.Server.Indexer.Nightcrawler.Api.UserTokenAuthorization;
 using Bibliotheca.Server.Mvc.Middleware.Authorization.SecureTokenAuthentication;
 using Bibliotheca.Server.Mvc.Middleware.Authorization.BearerAuthentication;
-using Microsoft.Extensions.PlatformAbstractions;
 using System.IO;
 using Swashbuckle.AspNetCore.Swagger;
 using System.Net.Http;
+using Neutrino.AspNetCore.Client;
+using System.Linq;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 {
@@ -72,7 +72,8 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
             services.AddMvc(config =>
             {
                 var policy = new AuthorizationPolicyBuilder()
-                    .AddAuthenticationSchemes(SecureTokenDefaults.AuthenticationScheme)
+                    .AddAuthenticationSchemes(SecureTokenSchema.Name)
+                    .AddAuthenticationSchemes(UserTokenSchema.Name)
                     .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
                     .RequireAuthenticatedUser()
                     .Build();
@@ -81,12 +82,33 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
                 options.SerializerSettings.DateTimeZoneHandling = Newtonsoft.Json.DateTimeZoneHandling.Utc;
             });
 
+            services.AddSingleton<ISecureTokenOptions>(new SecureTokenOptions { SecureToken = Configuration["SecureToken"] });
+            services.AddScoped<ISecureTokenAuthenticationHandler, SecureTokenAuthenticationHandler>();
+
+            services.AddScoped<IUserTokenConfiguration, UserTokenConfiguration>();
+            services.AddScoped<IUserTokenAuthenticationHandler, UserTokenAuthenticationHandler>();
+
+            services.AddAuthentication(configure => {
+                configure.AddScheme(SecureTokenSchema.Name, builder => {
+                    builder.DisplayName = SecureTokenSchema.Description;
+                    builder.HandlerType = typeof(ISecureTokenAuthenticationHandler);
+                });
+                configure.AddScheme(UserTokenSchema.Name, builder => {
+                    builder.DisplayName = UserTokenSchema.Description;
+                    builder.HandlerType = typeof(IUserTokenAuthenticationHandler);
+                });
+                configure.DefaultScheme = SecureTokenSchema.Name;
+            }).AddBearerAuthentication(options => {
+                options.Authority = Configuration["OAuthAuthority"];
+                options.Audience = Configuration["OAuthAudience"];
+            });
+
             services.AddApiVersioning(options =>
             {
                 options.AssumeDefaultVersionWhenUnspecified = true;
                 options.DefaultApiVersion = new ApiVersion(1, 0);
                 options.ReportApiVersions = true;
-                options.ApiVersionReader = new QueryStringOrHeaderApiVersionReader("api-version");
+                options.ApiVersionReader = ApiVersionReader.Combine( new QueryStringApiVersionReader(), new HeaderApiVersionReader( "api-version" ));
             });
 
             services.AddSwaggerGen(options =>
@@ -99,7 +121,7 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
                     TermsOfService = "None"
                 });
 
-                var basePath = PlatformServices.Default.Application.ApplicationBasePath;
+                var basePath = System.AppContext.BaseDirectory;
                 var xmlPath = Path.Combine(basePath, "Bibliotheca.Server.Indexer.Nightcrawler.Api.xml"); 
                 options.IncludeXmlComments(xmlPath);
             });
@@ -111,7 +133,10 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
                 options.ResolveDns();
             });
 
-            services.AddServiceDiscovery();
+            services.AddNeutrinoClient(options => {
+                options.SecureToken = Configuration["ServiceDiscovery:ServerSecureToken"];
+                options.Addresses = Configuration.GetSection("ServiceDiscovery:ServerAddresses").GetChildren().Select(x => x.Value).ToArray();
+            });
             services.AddSingleton<HttpClient, HttpClient>();
 
             services.AddScoped<IServiceDiscoveryRegistrationJob, ServiceDiscoveryRegistrationJob>();
@@ -153,29 +178,9 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 
             app.UseCors("AllowAllOrigins");
 
-            var secureTokenOptions = new SecureTokenOptions
-            {
-                SecureToken = Configuration["SecureToken"],
-                AuthenticationScheme = SecureTokenDefaults.AuthenticationScheme,
-                Realm = SecureTokenDefaults.Realm
-            };
-            app.UseSecureTokenAuthentication(secureTokenOptions);
+            app.UseRewriteAccessTokenFronQueryToHeader();
 
-            var userTokenOptions = new UserTokenOptions
-            {
-                AuthenticationScheme = UserTokenDefaults.AuthenticationScheme,
-                Realm = UserTokenDefaults.Realm
-            };
-            app.UseUserTokenAuthentication(userTokenOptions);
-
-            var jwtBearerOptions = new JwtBearerOptions
-            {
-                Authority = Configuration["OAuthAuthority"],
-                Audience = Configuration["OAuthAudience"],
-                AutomaticAuthenticate = true,
-                AutomaticChallenge = true
-            };
-            app.UseBearerAuthentication(jwtBearerOptions);
+            app.UseAuthentication();
 
             app.UseMvc();
 
