@@ -21,6 +21,7 @@ using Swashbuckle.AspNetCore.Swagger;
 using System.Net.Http;
 using Neutrino.AspNetCore.Client;
 using System.Linq;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 {
@@ -71,37 +72,26 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api
 
             services.AddMvc(config =>
             {
-                var policy = new AuthorizationPolicyBuilder()
-                    .AddAuthenticationSchemes(SecureTokenSchema.Name)
-                    .AddAuthenticationSchemes(UserTokenSchema.Name)
-                    .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+                var policy = new AuthorizationPolicyBuilder(
+                    new[] { SecureTokenSchema.Name, UserTokenSchema.Name, JwtBearerDefaults.AuthenticationScheme })
                     .RequireAuthenticatedUser()
                     .Build();
+                config.Filters.Add(new AuthorizeFilter(policy));
             }).AddJsonOptions(options =>
             {
                 options.SerializerSettings.DateTimeZoneHandling = Newtonsoft.Json.DateTimeZoneHandling.Utc;
             });
 
-            services.AddSingleton<ISecureTokenOptions>(new SecureTokenOptions { SecureToken = Configuration["SecureToken"] });
-            services.AddScoped<ISecureTokenAuthenticationHandler, SecureTokenAuthenticationHandler>();
-
             services.AddScoped<IUserTokenConfiguration, UserTokenConfiguration>();
-            services.AddScoped<IUserTokenAuthenticationHandler, UserTokenAuthenticationHandler>();
 
             services.AddAuthentication(configure => {
-                configure.AddScheme(SecureTokenSchema.Name, builder => {
-                    builder.DisplayName = SecureTokenSchema.Description;
-                    builder.HandlerType = typeof(ISecureTokenAuthenticationHandler);
-                });
-                configure.AddScheme(UserTokenSchema.Name, builder => {
-                    builder.DisplayName = UserTokenSchema.Description;
-                    builder.HandlerType = typeof(IUserTokenAuthenticationHandler);
-                });
                 configure.DefaultScheme = SecureTokenSchema.Name;
             }).AddBearerAuthentication(options => {
                 options.Authority = Configuration["OAuthAuthority"];
                 options.Audience = Configuration["OAuthAudience"];
-            });
+            }).AddSecureToken(options => {
+                options.SecureToken = Configuration["SecureToken"];
+            }).AddUserToken(options => { });
 
             services.AddApiVersioning(options =>
             {
