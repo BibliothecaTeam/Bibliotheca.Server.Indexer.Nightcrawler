@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.DataTransferObjects;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Jobs;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Services;
+using Bibliotheca.Server.Mvc.Middleware.Authorization;
 using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,7 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Api.Controllers
     /// <summary>
     /// Index queue controller.
     /// </summary>
-    [Authorize]
+    [UserAuthorize]
     [ApiVersion("1.0")]
     [Route("api/queues/{projectId}/{branchName}")]
     public class QueuesController : Controller
