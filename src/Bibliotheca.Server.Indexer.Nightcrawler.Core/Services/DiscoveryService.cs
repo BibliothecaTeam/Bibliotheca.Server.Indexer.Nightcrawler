@@ -1,17 +1,19 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Exceptions;
 using Bibliotheca.Server.Indexer.Nightcrawler.Core.Parameters;
-using Bibliotheca.Server.ServiceDiscovery.ServiceClient;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Neutrino.AspNetCore.Client;
+using Flurl;
 
 namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
 {
     public class DiscoveryService : IDiscoveryService
     {
-        private readonly IServiceDiscoveryQuery _serviceDiscoveryQuery;
+        private readonly INeutrinoClient _neutrinoClient;
 
         private readonly ApplicationParameters _applicationParameters;
 
@@ -20,12 +22,12 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
         private readonly ILogger<DiscoveryService> _logger;
 
         public DiscoveryService(
-            IServiceDiscoveryQuery serviceDiscoveryQuery, 
+            INeutrinoClient neutrinoClient, 
             IOptions<ApplicationParameters> applicationParameters,
             IMemoryCache memoryCache,
             ILogger<DiscoveryService> logger)
         {
-            _serviceDiscoveryQuery = serviceDiscoveryQuery;
+            _neutrinoClient = neutrinoClient;
             _applicationParameters = applicationParameters.Value;
             _memoryCache = memoryCache;
             _logger = logger;
@@ -53,17 +55,15 @@ namespace Bibliotheca.Server.Indexer.Nightcrawler.Core.Services
             {    
                 _logger.LogInformation($"Getting address for 'gateway' microservice.");
 
-                var instance = await _serviceDiscoveryQuery.GetServiceInstanceAsync(
-                    new ServerOptions { Address = _applicationParameters.ServiceDiscovery.ServerAddress },
-                    new string[] { "gateway" }
-                );
-                if (instance == null)
+                var services = await _neutrinoClient.GetServicesByServiceTypeAsync("gateway");
+                if (services == null || services.Count == 0)
                 {
                     _logger.LogWarning($"Address for 'gateway' microservice wasn't retrieved.");
                     throw new GatewayServiceNotAvailableException($"Microservice with tag 'gateway' service is not running!");
                 }
 
-                var address = $"http://{instance.Address}:{instance.Port}/api/";
+                var instance = services.FirstOrDefault();
+                var address = instance.Address.AppendPathSegment("api/");
                 _logger.LogInformation($"Address for 'gateway' microservice was retrieved ({address}).");
                 return address;
             }

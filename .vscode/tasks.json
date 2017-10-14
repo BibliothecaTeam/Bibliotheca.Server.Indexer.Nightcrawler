@@ -7,7 +7,7 @@
         {
             "taskName": "build",
             "args": [
-                "${workspaceRoot}/src/Bibliotheca.Server.Indexer.Nightcrawler.Api/project.json"
+                "${workspaceRoot}/src/Bibliotheca.Server.Indexer.Nightcrawler.Api/Bibliotheca.Server.Indexer.Nightcrawler.Api.csproj"
             ],
             "isBuildCommand": true,
             "problemMatcher": "$msCompile"
